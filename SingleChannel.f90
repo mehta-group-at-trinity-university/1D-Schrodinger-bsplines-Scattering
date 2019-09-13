@@ -1,7 +1,7 @@
 program SingleChannel
   use EREdata
   implicit none
-  double precision, external :: VSech, phirecon
+  double precision, external :: VSech, Vsqrc6,phirecon
   double precision, allocatable :: Energies(:)
   integer xDimMin,iEnergy,NumEnergySteps,iE
   double precision mass,x,EnergyMin,EnergyMax,DeltaEnergy,deltatemp,lwave,norm
@@ -70,7 +70,8 @@ program SingleChannel
   allocate(V0(MatrixDim,MatrixDim))
 
   do x=xMin,xMax,(xMax-xMin)/1000.0d0
-     write(1000,*) x, VSech(DD,x0,x) + lwave*(lwave+1.d0)/(x*x)
+     !write(1000,*) x, VSech(DD,x0,x,lwave) 
+     write(1000,*) x, Vsqrc6(DD,x0,x,lwave) 
   end do
 
   call GridMaker(xNumPoints,xMin,xMax,xPoints)
@@ -169,7 +170,7 @@ end subroutine CalcPhaseShift
 subroutine CalcGamma0(lwave)
   use EREdata
   implicit none
-  double precision, external :: VSech
+  double precision, external :: VSech,vsqrc6
   double precision ax, bx,x,xScaledZero,xIntScale,TempG,TempS,TempV,a,lwave
   integer, allocatable :: kxMin(:,:),kxMax(:,:)
   integer kx,ix,ixp,lx,n
@@ -202,7 +203,8 @@ subroutine CalcGamma0(lwave)
               a = wLeg(lx)*xIntScale
               x=xIntScale*xLeg(lx)+xScaledZero
               TempS = TempS + a*u(lx,kx,ix)*u(lx,kx,ixp)
-              TempV = TempV + a*u(lx,kx,ix)*(alpha*VSech(DD,x0,x) + lwave*(lwave+1.d0)/(x*x))*u(lx,kx,ixp)
+              !TempV = TempV + a*u(lx,kx,ix)*(alpha*VSech(DD,x0,x,lwave))*u(lx,kx,ixp)
+              TempV = TempV + a*u(lx,kx,ix)*(alpha*Vsqrc6(DD,x0,x,lwave))*u(lx,kx,ixp)
               TempG = TempG + a*(-ux(lx,kx,ix)*ux(lx,kx,ixp))
               !c                  print*,a, TempS, TempG
            enddo
@@ -343,12 +345,27 @@ subroutine printmatrix(M,nr,nc,file)
 20 format(1P,100e16.8)
 end subroutine printmatrix
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-double precision function VSech(DD,x0,x)
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+double precision function VSech(DD,x0,x,lwave)
   implicit none
-  double precision x,x0,DD
-  VSech = -DD/dcosh(x/x0)**2.d0
+  double precision x,x0,DD,lwave
+  VSech = -DD/dcosh(x/x0)**2.d0  + lwave*(lwave+1.d0)/(x*x)
   return
 end function VSech
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+double precision function Vsqrc6(V0,x0,x,lwave)
+  ! This returns the van der waals potential with a short-range square well
+  ! It is in van der waals units where x is measured in units of (2*mu*C6/hbar**2)**0.25
+
+  implicit none
+  double precision x, x0, V0,lwave
+  if (x.gt.x0) then
+     VsqrC6 = -0.994596*x**(-6) - 0.00537041*x**(-8) - 0.000033133*x**(-10) + lwave*(lwave+1.d0)/(x*x)
+  else
+     vsqrC6 = -V0 + lwave*(lwave+1.d0)/(x*x)
+  endif
+end function Vsqrc6
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!$double precision function VEffective(x)
 !!$  use Vparams
